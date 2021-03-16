@@ -119,7 +119,7 @@ train_datagen = ImageDataGenerator()
 train_flow = train_datagen.flow(X_train, Y_train, batch_size=10)
 
 test_datagen = ImageDataGenerator()
-test_flow = test_datagen.flow(X_test, Y_test)
+test_flow = test_datagen.flow(X_test, Y_test, batch_size=10)
 
 model.fit(x=train_flow,
           steps_per_epoch = 15,
@@ -127,7 +127,7 @@ model.fit(x=train_flow,
           verbose = 1,
 #           workers= 4,
           validation_data = test_flow,
-#           validation_steps = int(len(X_val) // batch_size),
+          validation_steps = 5,
            callbacks=[
               mcp_save
           ]
