@@ -1,6 +1,7 @@
 import incubator26.yolo.data_preparation as dp
 from incubator26.yolo.model import make_yolov3_model
 from incubator26.utils import datareader, preprocessor
+from incubator26.yolo import loss
 import numpy as np
 import os
 
@@ -109,7 +110,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint
 
 mcp_save = ModelCheckpoint('weight.hdf5', save_best_only=True, monitor='val_loss', mode='min')
 
-model.compile(loss=yolo_loss,
+model.compile(loss=loss.yolo_loss,
               optimizer='adam')
 
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
