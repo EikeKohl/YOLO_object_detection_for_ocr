@@ -1,4 +1,5 @@
 import numpy as np
+import keras.backend as K
 
 """
 Intersection_over_Union() muss noch auf Tensoren angepasst werden.
@@ -91,18 +92,18 @@ def yolo_loss(y_true, y_pred):
     x_diff = y_true_x - y_pred_x
     y_diff = y_true_y - y_pred_y
 
-    x_and_y_loss = lambda_coord * response_mask * (np.square(x_diff) + np.square(y_diff))
+    x_and_y_loss = lambda_coord * response_mask * (K.square(x_diff) + K.square(y_diff))
 
     # calculate sum of squared w and h differences
-    w_diff = np.sqrt(y_true_w) - np.sqrt(y_pred_w)
-    h_diff = np.sqrt(y_true_h) - np.sqrt(y_pred_h)
+    w_diff = K.sqrt(y_true_w) - K.sqrt(y_pred_w)
+    h_diff = K.sqrt(y_true_h) - K.sqrt(y_pred_h)
 
-    w_and_h_loss = lambda_coord * response_mask * (np.square(w_diff) + np.square(h_diff))
+    w_and_h_loss = lambda_coord * response_mask * (K.square(w_diff) + K.square(h_diff))
 
     # calculate sum of squared box prob differences
     box_prob_diff = y_true_box_prob - y_pred_box_prob
-    no_object_loss = lambda_noobj * (1 - response_mask) * np.square(0 - y_pred_box_prob)
-    object_loss = response_mask * np.square(1 - y_pred_box_prob)
+    no_object_loss = lambda_noobj * (1 - response_mask) * K.square(0 - y_pred_box_prob)
+    object_loss = response_mask * K.square(1 - y_pred_box_prob)
 
     box_prob_loss = no_object_loss + object_loss
 
