@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def preprocess_bounding_boxes(bounding_boxes, src_size, target_size, grid_size):
 
     image_H, image_W = src_size
@@ -45,21 +46,29 @@ def preprocess_bounding_boxes(bounding_boxes, src_size, target_size, grid_size):
 
         # what is the position of the center of the box within the grid between (0,0) and (1,1)?
 
-        x_box_in_grid = (x_center_bounding_box / grid_W_norm) - int(x_center_bounding_box / grid_W_norm)
-        y_box_in_grid = (y_center_bounding_box / grid_H_norm) - int(y_center_bounding_box / grid_H_norm)
+        x_box_in_grid = (x_center_bounding_box / grid_W_norm) - int(
+            x_center_bounding_box / grid_W_norm
+        )
+        y_box_in_grid = (y_center_bounding_box / grid_H_norm) - int(
+            y_center_bounding_box / grid_H_norm
+        )
 
         # fill dictionary with relevant information
 
-        bounding_boxes_yolo_format.append({"grid": [x_grid_with_box_center, y_grid_with_box_center],
-                          "x": x_box_in_grid,
-                          "y": y_box_in_grid,
-                          "w": box_W_relative_to_grid_size,
-                          "h": box_H_relative_to_grid_size
-                          })
+        bounding_boxes_yolo_format.append(
+            {
+                "grid": [x_grid_with_box_center, y_grid_with_box_center],
+                "x": x_box_in_grid,
+                "y": y_box_in_grid,
+                "w": box_W_relative_to_grid_size,
+                "h": box_H_relative_to_grid_size,
+            }
+        )
 
         current_bounding_box += 1
 
     return bounding_boxes_yolo_format
+
 
 def find_best_anchor_box_with_IoU(bounding_box_meta: list, anchor_boxes: list):
     for box in bounding_box_meta:
@@ -74,6 +83,7 @@ def find_best_anchor_box_with_IoU(bounding_box_meta: list, anchor_boxes: list):
         box["anchor box"] = np.argmax(IoU_list)
 
     return bounding_box_meta
+
 
 def convert_bounding_boxes_to_numpy_ndarray(bounding_boxes_list_of_dicts, output_shape):
 
@@ -92,6 +102,43 @@ def convert_bounding_boxes_to_numpy_ndarray(bounding_boxes_list_of_dicts, output
         offset = 5 * anchor_box
 
         y_true[grid_x, grid_y, 0 + offset] = 1  # response
-        y_true[grid_x, grid_y, 1 + offset:5 + offset] = [x, y, w, h]
+        y_true[grid_x, grid_y, 1 + offset : 5 + offset] = [x, y, w, h]
 
     return y_true
+
+
+def decode_yolo_model_output(
+    prediction, non_max_surpression, number_of_grids, grid_size
+):
+    prediction_copy = np.copy(prediction)
+    y_pred_box_prob = prediction_copy[0, :, :, 0]
+
+    pred_mask = y_pred_box_prob >= non_max_surpression
+    x_mask = np.zeros((number_of_grids, number_of_grids))
+    y_mask = np.zeros((number_of_grids, number_of_grids))
+    for grid_x in range(number_of_grids):
+        for grid_y in range(number_of_grids):
+            x_mask[grid_x, grid_y] = (grid_y) * grid_size
+            y_mask[grid_x, grid_y] = (grid_x) * grid_size
+
+    y_pred_x = prediction_copy[0, :, :, 1] * grid_size + x_mask
+    y_pred_y = prediction_copy[0, :, :, 2] * grid_size + y_mask
+    y_pred_w = prediction_copy[0, :, :, 3] * grid_size
+    y_pred_h = prediction_copy[0, :, :, 4] * grid_size
+
+    x1 = (y_pred_x[pred_mask] - y_pred_w[pred_mask] / 2).reshape((-1, 1))
+    x2 = (y_pred_x[pred_mask] + y_pred_w[pred_mask] / 2).reshape((-1, 1))
+    y1 = (y_pred_y[pred_mask] - y_pred_h[pred_mask] / 2).reshape((-1, 1))
+    y2 = (y_pred_y[pred_mask] + y_pred_h[pred_mask] / 2).reshape((-1, 1))
+
+    list_of_bounding_boxes = []
+    for idx in range(len(x1)):
+        bounding_box = [
+            float(x1[idx].squeeze()),
+            float(y1[idx].squeeze()),
+            float(x2[idx].squeeze()),
+            float(y2[idx].squeeze()),
+        ]
+        list_of_bounding_boxes.append(bounding_box)
+
+    return list_of_bounding_boxes

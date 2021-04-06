@@ -1,134 +1,64 @@
-import incubator26.yolo.data_preparation as dp
 from incubator26.yolo.model import make_yolov3_model
-from incubator26.utils import datareader, preprocessor
-from incubator26.yolo import loss
-import numpy as np
-import os
-
-reader = datareader.DataReader()
-preprocess = preprocessor.PreProcessor()
-
-# Create Training Data
-train_img_folder = "./yolo_data/training_data/images"
-train_annotation_folder = "./yolo_data/training_data/annotations"
-
-train_img_files = reader.get_list_of_data(train_img_folder)
-m, n_C, n_W, n_H = len(train_img_files), 1, 768, 768
-grid_size = 24
-number_of_grids = int(n_W / grid_size)
-
-X_train = np.ndarray(shape=(m, n_H, n_W, n_C))
-Y_train = np.ndarray(shape=(m, number_of_grids, number_of_grids, 5))
-
-all_bounding_boxes = []
-
-anchor_boxes = [(5, 0.25)]
-
-for index, img in enumerate(train_img_files):
-    img_filepath = os.path.join(train_img_folder, img)
-    image, size = reader.read_image(img_filepath)
-    original_W = size[1]
-    original_H = size[0]
-
-    image = preprocess.preprocess_image(target_size=(n_W, n_H),
-                                        image=image
-                                        )
-    X_train[index] = image
-
-    json_filepath = os.path.join(train_annotation_folder, img.split(".")[0] + ".json")
-    bounding_boxes = reader.get_bounding_boxes_from_json(json_filepath)
-    bounding_boxes_yolo_format = dp.preprocess_bounding_boxes(bounding_boxes=bounding_boxes,
-                                                              src_size=(original_H, original_W),
-                                                              target_size=(n_H, n_W),
-                                                              grid_size=grid_size
-                                                              )
-    dp.find_best_anchor_box_with_IoU(bounding_box_meta=bounding_boxes_yolo_format,
-                                     anchor_boxes=anchor_boxes
-                                     )
-
-    y_tensor = dp.convert_bounding_boxes_to_numpy_ndarray(bounding_boxes_list_of_dicts=bounding_boxes_yolo_format,
-                                                          output_shape=(number_of_grids, number_of_grids, 5)
-                                                          )
-
-    Y_train[index] = y_tensor
-
-
-# Create Testing Data
-test_img_folder = "./yolo_data/testing_data/images"
-test_annotation_folder = "./yolo_data/testing_data/annotations"
-
-test_img_files = reader.get_list_of_data(test_img_folder)
-m, n_C, n_W, n_H = len(test_img_files), 1, 768, 768
-grid_size = 24
-number_of_grids = int(n_W / grid_size)
-
-X_test = np.ndarray(shape=(m, n_H, n_W, n_C))
-Y_test = np.ndarray(shape=(m, number_of_grids, number_of_grids, 5))
-
-all_bounding_boxes = []
-
-anchor_boxes = [(5, 0.25)]
-
-for index, img in enumerate(test_img_files):
-    img_filepath = os.path.join(test_img_folder, img)
-    image, size = reader.read_image(img_filepath)
-    original_W = size[1]
-    original_H = size[0]
-
-    image = preprocess.preprocess_image(target_size=(n_W, n_H),
-                                        image=image
-                                        )
-    X_test[index] = image
-
-    json_filepath = os.path.join(test_annotation_folder, img.split(".")[0] + ".json")
-    bounding_boxes = reader.get_bounding_boxes_from_json(json_filepath)
-    bounding_boxes_yolo_format = dp.preprocess_bounding_boxes(bounding_boxes=bounding_boxes,
-                                                              src_size=(original_H, original_W),
-                                                              target_size=(n_H, n_W),
-                                                              grid_size=grid_size
-                                                              )
-    dp.find_best_anchor_box_with_IoU(bounding_box_meta=bounding_boxes_yolo_format,
-                                     anchor_boxes=anchor_boxes
-                                     )
-
-    y_tensor = dp.convert_bounding_boxes_to_numpy_ndarray(bounding_boxes_list_of_dicts=bounding_boxes_yolo_format,
-                                                          output_shape=(number_of_grids, number_of_grids, 5)
-                                                          )
-
-    Y_test[index] = y_tensor
-
-print(X_train.shape)
-print(Y_train.shape)
-print(X_test.shape)
-print(Y_test.shape)
-
-model = make_yolov3_model()
-model.summary()
-
-# defining a function to save the weights of best model
-from tensorflow.keras.callbacks import ModelCheckpoint
-
-mcp_save = ModelCheckpoint('weight.hdf5', save_best_only=True, monitor='val_loss', mode='min')
-
-model.compile(loss=loss.yolo_loss,
-              optimizer='adam')
-
+from incubator26.utils import preprocessor
+from incubator26.yolo import loss, callbacks
+from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import tensorflow as tf
 
+
+# Define constants
+TRAIN_IMG_FOLDER = "./yolo_data/training_data/images"
+TRAIN_ANNOTATION_FOLDER = "./yolo_data/training_data/annotations"
+TEST_IMG_FOLDER = "./yolo_data/testing_data/images"
+TEST_ANNOTATION_FOLDER = "./yolo_data/testing_data/annotations"
+n_C, n_W, n_H = 1, 512, 512
+GRID_SIZE = 16
+ANCHOR_BOXES = [(5, 0.25)]
+TEST_BATCH_SIZE = 8
+TRAIN_BATCH_SIZE = 8
+EPOCHS = 100
+
+# Generate train and test data
+preprocess = preprocessor.PreProcessor()
+X_train, X_test, Y_train, Y_test = preprocess.generate_train_test_data(
+    input_shape=(n_C, n_W, n_H),
+    grid_size=GRID_SIZE,
+    train_img_folder=TRAIN_IMG_FOLDER,
+    train_annotation_folder=TRAIN_ANNOTATION_FOLDER,
+    test_img_folder=TEST_IMG_FOLDER,
+    test_annotation_folder=TEST_ANNOTATION_FOLDER,
+    anchor_boxes=ANCHOR_BOXES,
+)
+
+# Define data flow for training and testing data
 train_datagen = ImageDataGenerator()
-train_flow = train_datagen.flow(X_train, Y_train, batch_size=10)
+train_flow = train_datagen.flow(X_train, Y_train, batch_size=TRAIN_BATCH_SIZE)
 
 test_datagen = ImageDataGenerator()
-test_flow = test_datagen.flow(X_test, Y_test, batch_size=10)
+test_flow = test_datagen.flow(X_test, Y_test, batch_size=TEST_BATCH_SIZE)
 
-model.fit(x=train_flow,
-          steps_per_epoch = 15,
-          epochs = 50,
-          verbose = 1,
-#           workers= 4,
-          validation_data = test_flow,
-          validation_steps = 5,
-           callbacks=[
-              mcp_save
-          ]
-         )
+# Compile Model
+strategy = tf.distribute.MirroredStrategy()
+print("Number of devices: {}".format(strategy.num_replicas_in_sync))
+
+with strategy.scope():
+    model = make_yolov3_model((n_H, n_W, n_C))
+    model.compile(loss=loss.yolo_loss, optimizer="adam")
+    model.summary()
+
+
+# Set callbacks
+mcp_save = callbacks.MyModelCheckpoint()
+tensorboard_callback = callbacks.MyTensorBoard("logs")
+lr_scheduler = LearningRateScheduler(
+    callbacks.MyLearningRateScheduler.lr_exp_decay(), verbose=1
+)
+
+# Fit the model
+history = model.fit(
+    x=train_flow,
+    epochs=EPOCHS,
+    verbose=1,
+    validation_data=test_flow,
+    callbacks=[mcp_save, lr_scheduler, tensorboard_callback],
+)

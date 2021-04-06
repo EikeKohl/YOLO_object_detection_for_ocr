@@ -4,6 +4,8 @@ import keras.backend as K
 """
 Intersection_over_Union() muss noch auf Tensoren angepasst werden.
 """
+
+
 def Intersection_over_Union(y_true, y_pred):
 
     # define variables from input tensors
@@ -59,14 +61,14 @@ def Intersection_over_Union(y_true, y_pred):
 
 
 """
-Diese Funktion ist aktuell so gebaut, dass anchorboxes NICHT berücksichtigt werden, 
-also es gibt nur eine Anchorbox. Es wird also keine Unterdrückung geringerer IoU durchgeführt.
-Das sollte bei Gelegenheit noch ergänzt werden.
+Diese Funktion ist aktuell so gebaut, dass anchorboxes NICHT ber체cksichtigt werden, 
+also es gibt nur eine Anchorbox. Es wird also keine Unterdr체ckung geringerer IoU durchgef체hrt.
+Das sollte bei Gelegenheit noch erg채nzt werden.
 """
 
 
 def yolo_loss(y_true, y_pred):
-    # define variables from input tensors
+    # define variables from input tensors y_true and y_pred with shape (None, 32, 32, 5) respectively
 
     y_pred_box_prob = y_pred[:, :, :, 0]  # shape = (149, 30, 30, 1)
     y_pred_x = y_pred[:, :, :, 1]  # shape = (149, 30, 30, 1)
@@ -80,7 +82,7 @@ def yolo_loss(y_true, y_pred):
     y_true_w = y_true[:, :, :, 3]  # shape = (149, 30, 30, 1)
     y_true_h = y_true[:, :, :, 4]  # shape = (149, 30, 30, 1)
 
-    # define response mask: object in grid, yes or no?
+    #define response mask: object in grid, yes or no?
 
     response_mask = y_true[:, :, :, 0]  # shape = (149, 30, 30, 1)
 
@@ -101,13 +103,14 @@ def yolo_loss(y_true, y_pred):
     w_and_h_loss = lambda_coord * response_mask * (K.square(w_diff) + K.square(h_diff))
 
     # calculate sum of squared box prob differences
-    box_prob_diff = y_true_box_prob - y_pred_box_prob
+    box_prob_diff = response_mask * K.square(y_true_box_prob - y_pred_box_prob)
     no_object_loss = lambda_noobj * (1 - response_mask) * K.square(0 - y_pred_box_prob)
     object_loss = response_mask * K.square(1 - y_pred_box_prob)
 
-    box_prob_loss = no_object_loss + object_loss
+    box_prob_loss = no_object_loss + object_loss + box_prob_diff
 
     # calculate yolo loss
-    yolo_loss = x_and_y_loss + w_and_h_loss + box_prob_loss
+    yolo_loss = K.sum(x_and_y_loss + w_and_h_loss + box_prob_loss)
 
     return yolo_loss
+
