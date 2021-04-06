@@ -42,7 +42,7 @@ def _conv_block(inp, convs, skip=True):
     return add([skip_connection, x]) if skip else x
 
 
-def make_yolov3_model(input_shape):
+def make_yolov3_model(input_shape, output_vector_size):
     input_image = Input(shape=input_shape)
 
     # Layer  0 => 4
@@ -368,7 +368,7 @@ def make_yolov3_model(input_shape):
                 "layer_idx": 80,
             },
             {
-                "filter": 5,
+                "filter": output_vector_size,
                 "kernel": 1,
                 "stride": 1,
                 "bnorm": False,
@@ -458,7 +458,7 @@ def make_yolov3_model(input_shape):
                 "layer_idx": 92,
             },
             {
-                "filter": 5,
+                "filter": output_vector_size,
                 "kernel": 1,
                 "stride": 1,
                 "bnorm": False,
@@ -548,7 +548,7 @@ def make_yolov3_model(input_shape):
                 "layer_idx": 105,
             },
             {
-                "filter": 5,
+                "filter": output_vector_size,
                 "kernel": 1,
                 "stride": 1,
                 "bnorm": False,

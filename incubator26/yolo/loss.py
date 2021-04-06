@@ -68,23 +68,21 @@ Das sollte bei Gelegenheit noch erg채nzt werden.
 
 
 def yolo_loss(y_true, y_pred):
-    # define variables from input tensors y_true and y_pred with shape (None, 32, 32, 5) respectively
+    # define variables from input tensors y_true and y_pred with shape (None, 32, 32, 5) respectively.
+    y_pred_box_prob = y_pred[:, :, :, 0]  # shape = (None, 32, 32, 1)
+    y_pred_x = y_pred[:, :, :, 1]  # shape = (None, 32, 32, 1)
+    y_pred_y = y_pred[:, :, :, 2]  # shape = (None, 32, 32, 1)
+    y_pred_w = y_pred[:, :, :, 3]  # shape = (None, 32, 32, 1)
+    y_pred_h = y_pred[:, :, :, 4]  # shape = (None, 32, 32, 1)
 
-    y_pred_box_prob = y_pred[:, :, :, 0]  # shape = (149, 30, 30, 1)
-    y_pred_x = y_pred[:, :, :, 1]  # shape = (149, 30, 30, 1)
-    y_pred_y = y_pred[:, :, :, 2]  # shape = (149, 30, 30, 1)
-    y_pred_w = y_pred[:, :, :, 3]  # shape = (149, 30, 30, 1)
-    y_pred_h = y_pred[:, :, :, 4]  # shape = (149, 30, 30, 1)
+    y_true_box_prob = y_true[:, :, :, 0]  # shape = (None, 32, 32, 1)
+    y_true_x = y_true[:, :, :, 1]  # shape = (None, 32, 32, 1)
+    y_true_y = y_true[:, :, :, 2]  # shape = (None, 32, 32, 1)
+    y_true_w = y_true[:, :, :, 3]  # shape = (None, 32, 32, 1)
+    y_true_h = y_true[:, :, :, 4]  # shape = (None, 32, 32, 1)
 
-    y_true_box_prob = y_true[:, :, :, 0]  # shape = (149, 30, 30, 1)
-    y_true_x = y_true[:, :, :, 1]  # shape = (149, 30, 30, 1)
-    y_true_y = y_true[:, :, :, 2]  # shape = (149, 30, 30, 1)
-    y_true_w = y_true[:, :, :, 3]  # shape = (149, 30, 30, 1)
-    y_true_h = y_true[:, :, :, 4]  # shape = (149, 30, 30, 1)
-
-    #define response mask: object in grid, yes or no?
-
-    response_mask = y_true[:, :, :, 0]  # shape = (149, 30, 30, 1)
+    # define response mask: object in grid, yes or no?
+    response_mask = y_true[:, :, :, 0]  # shape = # shape = (None, 32, 32, 1)
 
     # set value for lamba_coord (default from paper = 5) and lambda_noobj (default from paper = 0.5)
     lambda_coord = 5
@@ -103,14 +101,16 @@ def yolo_loss(y_true, y_pred):
     w_and_h_loss = lambda_coord * response_mask * (K.square(w_diff) + K.square(h_diff))
 
     # calculate sum of squared box prob differences
-    box_prob_diff = response_mask * K.square(y_true_box_prob - y_pred_box_prob)
+    # box_prob_diff = response_mask * K.square(y_true_box_prob - y_pred_box_prob)
     no_object_loss = lambda_noobj * (1 - response_mask) * K.square(0 - y_pred_box_prob)
     object_loss = response_mask * K.square(1 - y_pred_box_prob)
 
-    box_prob_loss = no_object_loss + object_loss + box_prob_diff
+    box_prob_loss = no_object_loss + object_loss
+                    # + box_prob_diff
 
     # calculate yolo loss
-    yolo_loss = K.sum(x_and_y_loss + w_and_h_loss + box_prob_loss)
+    loss = K.sum(x_and_y_loss + w_and_h_loss + box_prob_loss)
 
-    return yolo_loss
+    return loss
+
 

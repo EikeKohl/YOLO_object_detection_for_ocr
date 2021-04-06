@@ -12,6 +12,7 @@ TRAIN_ANNOTATION_FOLDER = "./yolo_data/training_data/annotations"
 TEST_IMG_FOLDER = "./yolo_data/testing_data/images"
 TEST_ANNOTATION_FOLDER = "./yolo_data/testing_data/annotations"
 n_C, n_W, n_H = 1, 512, 512
+OUTPUT_VECTOR_SIZE = 5
 GRID_SIZE = 16
 ANCHOR_BOXES = [(5, 0.25)]
 TEST_BATCH_SIZE = 8
@@ -42,7 +43,9 @@ strategy = tf.distribute.MirroredStrategy()
 print("Number of devices: {}".format(strategy.num_replicas_in_sync))
 
 with strategy.scope():
-    model = make_yolov3_model((n_H, n_W, n_C))
+    model = make_yolov3_model(
+        input_shape=(n_H, n_W, n_C), output_vector_size=OUTPUT_VECTOR_SIZE
+    )
     model.compile(loss=loss.yolo_loss, optimizer="adam")
     model.summary()
 
@@ -51,7 +54,7 @@ with strategy.scope():
 mcp_save = callbacks.MyModelCheckpoint()
 tensorboard_callback = callbacks.MyTensorBoard("logs")
 lr_scheduler = LearningRateScheduler(
-    callbacks.MyLearningRateScheduler.lr_exp_decay(), verbose=1
+    callbacks.MyLearningRateScheduler.lr_exp_decay, verbose=1
 )
 
 # Fit the model

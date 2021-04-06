@@ -43,5 +43,5 @@ plots.plot_image_from_array(
     height=20,
     width=20,
     plot_grids=True,
-    number_of_grids=GRID_SIZE,
+    grid_size=GRID_SIZE,
 )
