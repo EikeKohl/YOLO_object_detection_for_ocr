@@ -1,5 +1,7 @@
 # YOLO_object_detection_for_ocr
 
+This repository is work in progress!
+
 ## To Do
 
 * ~~Refactor Code~~
